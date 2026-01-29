@@ -1,0 +1,38 @@
+name: Daily Sync
+
+on:
+  schedule:
+    # Runs daily at midnight UTC
+    - cron: '0 0 * * *'
+  # Allow manual triggering from GitHub Actions UI
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Fetch latest list from source
+        run: |
+          curl -o list.txt.new https://a.dove.isdumb.one/list.txt
+
+      - name: Compare and update if changed
+        run: |
+          if ! cmp -s list.txt list.txt.new; then
+            echo "Changes detected, updating list.txt"
+            mv list.txt.new list.txt
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add list.txt
+            git commit -m "Update list.txt - $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
+            git push
+          else
+            echo "No changes detected"
+            rm -f list.txt.new
+          fi

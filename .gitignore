@@ -1,0 +1,22 @@
+# Claude Code local configuration
+.claude/
+CLAUDE.md
+
+# IDE/Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+
+# Watchdog scan temporary artifacts
+.watchdog-changes.detected
+.watchdog-reachable.tmp
+.watchdog-state.new.json
+
+private.txt

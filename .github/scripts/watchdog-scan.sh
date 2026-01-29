@@ -102,6 +102,10 @@ echo "Starting DNS checks..."
 NEW_REACHABLE=0
 SCAN_CHECKED=0
 
+# Temporary file for building checked_domains JSON incrementally
+CHECKED_DOMAINS_TMP=".watchdog-checked.tmp"
+echo "{}" > "$CHECKED_DOMAINS_TMP"
+
 while IFS= read -r domain; do
     [ -z "$domain" ] && continue
 
@@ -118,9 +122,15 @@ while IFS= read -r domain; do
 
     # Update checked_domains in state (mark as checked with timestamp)
     TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-    CHECKED_DOMAINS=$(echo "$CHECKED_DOMAINS" | jq ".\"$domain\" = \"$TIMESTAMP\"")
+    # Add domain to checked domains JSON file (incremental update to avoid argument length issues)
+    jq ".\"$domain\" = \"$TIMESTAMP\"" "$CHECKED_DOMAINS_TMP" > "$CHECKED_DOMAINS_TMP.new"
+    mv "$CHECKED_DOMAINS_TMP.new" "$CHECKED_DOMAINS_TMP"
 
 done <<< "$DOMAINS_TO_CHECK"
+
+# Load the final checked_domains from the temp file
+CHECKED_DOMAINS=$(cat "$CHECKED_DOMAINS_TMP")
+rm -f "$CHECKED_DOMAINS_TMP"
 
 echo ""
 echo "Scan results: $SCAN_CHECKED checked, $NEW_REACHABLE newly reachable"
@@ -170,13 +180,18 @@ NEW_TOTAL_CHECKED=$((TOTAL_CHECKED + SCAN_CHECKED))
 NEW_REACHABLE_TOTAL=$((REACHABLE_COUNT + NEW_REACHABLE))
 SCAN_TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
+# Write checked_domains to a temp file to avoid argument length issues
+echo "$CHECKED_DOMAINS" > "$NEW_STATE.checked"
+
+# Update state file using slurpfile to handle large JSON
 jq -r "
     .last_${MODE}_scan = \"$SCAN_TIMESTAMP\" |
     .checked_domains = \$checked |
     .scan_stats.total_checked = $NEW_TOTAL_CHECKED |
     .scan_stats.reachable = $NEW_REACHABLE_TOTAL
-" "$STATE_FILE" --argjson checked "$CHECKED_DOMAINS" > "$NEW_STATE"
+" "$STATE_FILE" --slurpfile checked "$NEW_STATE.checked" > "$NEW_STATE"
 
+rm -f "$NEW_STATE.checked"
 mv "$NEW_STATE" "$STATE_FILE"
 
 echo ""

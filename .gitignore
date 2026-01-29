@@ -18,5 +18,8 @@ CLAUDE.md
 .watchdog-changes.detected
 .watchdog-reachable.tmp
 .watchdog-state.new.json
+.watchdog-checked.tmp
+.watchdog-checked.tmp.new
+.watchdog-state.new.json.checked
 
 private.txt
